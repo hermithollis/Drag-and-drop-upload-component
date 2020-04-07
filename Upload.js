@@ -1,26 +1,25 @@
-import React, { useReducer } from "react";
+import React, { useState, useReducer } from "react";
 import InputFile from "./InputFile";
-import './styles.css'; 
 
-const DRAG_ENTER = 'DRAG_ENTER'; 
-const DRAG_LEAVE = 'DRAG_LEAVE';
-const DRAG_OVER = 'DRAG_OVER'; 
-const DRAGABLE = 'DRAGABLE'; 
-const UNDRAGABLE = 'UNDRAGABLE';
-const REQUEST_STARTED = 'REQUEST_STARTED'; 
-const REQUEST_ENDED = 'REQUEST_ENDED'; 
-const DISPLAY_PERCENTAGE = 'DISPLAY_PERCENTAGE';
-const DISPLAY_PREVIEW = 'DISPLAY_PREVIEW';
-const LOAD_FINISHED = 'LOAD_FINISHED';
-const LOADING = 'LOADING';
-const ABORT = 'ABORT';
+const DRAG_ENTER = "DRAG_ENTER";
+const DRAG_LEAVE = "DRAG_LEAVE";
+const DRAG_OVER = "DRAG_OVER";
+const DRAGABLE = "DRAGABLE";
+const UNDRAGABLE = "UNDRAGABLE";
+const REQUEST_STARTED = "REQUEST_STARTED";
+const REQUEST_ENDED = "REQUEST_ENDED";
+const DISPLAY_PERCENTAGE = "DISPLAY_PERCENTAGE";
+const DISPLAY_PREVIEW = "DISPLAY_PREVIEW";
+const LOAD_FINISHED = "LOAD_FINISHED";
+const LOADING = "LOADING";
+const ABORT = "ABORT";
 
 const initialState = {
   enableDragDrop: true,
-  status: 'Drop Here'
-}
+  status: "Drop Here",
+};
 
-const reducer = ( state, action ) => {
+const reducer = (state, action) => {
   return {
     [DRAGABLE]: {
       ...state,
@@ -39,6 +38,7 @@ const reducer = ( state, action ) => {
     },
     [DRAG_ENTER]: {
       ...state,
+      over: true,
       status: action.payload,
     },
     [DRAG_OVER]: {
@@ -77,89 +77,97 @@ const reducer = ( state, action ) => {
     [DISPLAY_PREVIEW]: {
       ...state,
       preview: action.payload,
-    }
-  }[action.type] 
+    },
+  }[action.type];
 };
 
-const Upload = props => {
+const Upload = (props) => {
   const {
     uploadUrl,
     inputComponent,
     buttonComponent,
     fileTypesSupported,
-    messages,
-    classes,
+    messages = {},
+    classes = {},
     buttonMessage,
-    onLoadCompleted
+    onLoadCompleted,
+    showInput
   } = props;
   const {
     container,
     imagePreview,
     show,
     dropArea,
-    over,
-    uploading,
     uploadControls,
     imageProgress,
     imageProgressImage,
     imageProgressUploaded,
     statusContainer,
     browse,
-    abort
-  } = classes || {};
+    abort,
+  } = classes;
 
-  const { dropHere, drop, fileDetected, done } = messages || {};
-  const [state, dispatch] = useReducer(reducer, initialState); 
-  const {status, preview, percentage, enableDragDrop, stateXhr, file} = state;
+  const { dropHere, drop, fileDetected, done } = messages;
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const { status, preview, percentage, enableDragDrop, stateXhr, file, over, uploading } = state;
 
-  const doNothing = event => event.preventDefault();
+  const doNothing = (event) => event.preventDefault();
 
-  const onDragEnter = event => {
+  const onDragEnter = (event) => {
     if (enableDragDrop) {
-      dispatch({type: DRAG_ENTER, payload: fileDetected || 'File Detected'});
+      dispatch({ type: DRAG_ENTER, payload: fileDetected || "File Detected" });
     }
     event.preventDefault();
     event.stopPropagation();
   };
 
-  const onDragLeave = event => {
+  const onDragLeave = (event) => {
     if (enableDragDrop) {
-      dispatch({type: DRAG_LEAVE, payload: dropHere || 'Drop Here'});
+      dispatch({ type: DRAG_LEAVE, payload: dropHere || "Drop Here" });
     }
     event.preventDefault();
   };
 
-  const onDragOver = event => {
+  const onDragOver = (event) => {
     if (enableDragDrop) {
-      dispatch({type: DRAG_OVER, payload: drop || "Drop"});
+      dispatch({ type: DRAG_OVER, payload: drop || "Drop" });
     }
     event.preventDefault();
   };
 
   const onAbortClick = () => {
     stateXhr.abort();
-    dispatch({ type: ABORT, payload: dropHere || "Drop Here"});
+    dispatch({ type: ABORT, payload: dropHere || "Drop Here" });
   };
 
-  const onDrop = event => {
+  const onDrop = (event) => {
     const [file] = event.dataTransfer.files;
     if (file) upLoad(file);
     event.preventDefault();
   };
 
-  const onFileSelected = event => {
+  const onFileSelected = (event) => {
     const [file] = event.target.files;
     if (file) upLoad(file);
     event.preventDefault();
   };
 
-  const upLoad = file => {
+  const clickHandler = (event) => {
+    fileInputRef.click();
+  };
+
+  let [fileInputRef, setFileInputRef] = useState(null);
+
+
+
+  const upLoad = (file) => {
     const { type } = file;
     const supportedFilesTypes = [...fileTypesSupported];
     if (supportedFilesTypes.indexOf(type) > -1 && enableDragDrop) {
       // Begin Reading File
       const reader = new FileReader();
-      reader.onload = e => dispatch({type: DISPLAY_PREVIEW, payload: e.target.result});
+      reader.onload = (e) =>
+        dispatch({ type: DISPLAY_PREVIEW, payload: e.target.result });
       reader.readAsDataURL(file);
       // Create Form Data
       const payload = new FormData();
@@ -167,28 +175,28 @@ const Upload = props => {
       // XHR - New XHR Request
       const xhr = new XMLHttpRequest();
       // XHR - Upload Progress
-      xhr.upload.onprogress = e => {
+      xhr.upload.onprogress = (e) => {
         const loaded = e.position || e.loaded;
         const total = e.totalSize || e.total;
         const perc = Math.floor((loaded / total) * 1000) / 10;
         if (perc >= 100) {
-          dispatch({type: LOAD_FINISHED, payload: done || 'Done'});
+          dispatch({ type: LOAD_FINISHED, payload: done || "Done" });
           // Delayed reset
           setTimeout(() => {
-            dispatch({type: REQUEST_ENDED, payload: dropHere || "Drop Here"})
+            dispatch({ type: REQUEST_ENDED, payload: dropHere || "Drop Here" });
             if (onLoadCompleted) {
               onLoadCompleted();
             }
           }, 750); // To match the transition 500 / 250
         } else {
-          dispatch({type: DISPLAY_PERCENTAGE, payload: perc})
+          dispatch({ type: DISPLAY_PERCENTAGE, payload: `${perc}%` });
         }
-        dispatch({type: LOADING, payload: perc})
+        dispatch({ type: LOADING, payload: perc });
       };
       // XHR - Make Request
       xhr.open("POST", uploadUrl);
       xhr.send(payload);
-      dispatch({type: REQUEST_STARTED, payload: { xhr, file }})
+      dispatch({ type: REQUEST_STARTED, payload: { xhr, file } });
     } else {
       alert("File format not supported");
     }
@@ -196,14 +204,16 @@ const Upload = props => {
 
   return (
     <div
-      className={classes.container || "DragAndDropUploadContainer"}
+      className={classes.container || "Section"}
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
       onDragOver={doNothing}
       onDrop={onDragLeave}
     >
       <div
-        className={classes.imagePreview || "ImagePreview" + ` ${preview ? "Show" : ""}`}
+        className={
+          classes.imagePreview || "ImagePreview" + ` ${preview ? "Show" : ""}`
+        }
       >
         <div style={{ backgroundImage: `url(${preview})` }}></div>
       </div>
@@ -235,7 +245,7 @@ const Upload = props => {
             className={imageProgressUploaded || "ImageProgressUploaded"}
             style={{
               backgroundImage: `url(${preview})`,
-              clipPath: `inset(${100 - Number(percentage)}% 0 0 0)`
+              clipPath: `inset(${100 - Number(percentage)}% 0 0 0)`,
             }}
           ></div>
         </div>
@@ -253,16 +263,21 @@ const Upload = props => {
           >
             {status}
           </div>
-          <div className={browse || "Browse"}>
-            <p>Or</p>
-            <InputFile
-              file={file}
-              onFileSelected={onFileSelected}
-              inputComponent={inputComponent}
-              buttonComponent={buttonComponent}
-              buttonMessage={buttonMessage}
-            />
-          </div>
+          {showInput && (
+            <div className={browse || "Browse"}>
+              <p>Or</p>
+              <InputFile
+                file={file}
+                onFileSelected={onFileSelected}
+                inputComponent={inputComponent}
+                buttonComponent={buttonComponent}
+                buttonMessage={buttonMessage}
+                clickHandler={clickHandler}
+                fileInputRef={fileInputRef}
+                setFileInputRef={setFileInputRef}
+              />
+            </div>
+          )}
         </div>
         {status.indexOf("%") > -1 && (
           <div className={abort || "Abort"} onClick={onAbortClick}>
